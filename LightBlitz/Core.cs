@@ -87,84 +87,81 @@ namespace LightBlitz
         {
             while (true)
             {
-                await MainProcess();
-                await Task.Delay(5000);
-            }
-        }
-
-        private async Task MainProcess()
-        {
-            if (!GetLeagueClientInformation(out var process))
-                return;
-
-            while (true)
-            {
-                if (process.HasExited)
-                    return;
-
-                var latestChampionId = 0;
-                var shouldFetchBaseVariables = true;
-                var currentVersion = string.Empty;
-                var queueData = default(QueueData);
-
-                while (await GetGameflowPhase() == "ChampSelect")
+                if (!GetLeagueClientInformation(out var process))
                 {
-                    IsBusy = true;
-
-                    if (shouldFetchBaseVariables)
-                    {
-                        currentVersion = await GetCurrentVersion();
-                        queueData = await GetQueueData();
-
-                        Log("queueData.ID={0}, queueData.MapID={1}, gameVersion={2}", queueData.ID, queueData.MapID, currentVersion);
-
-                        if (queueData.ID == -1) // Custom?
-                        {
-                            if (queueData.MapID == mapSummonersRift)
-                                queueData.ID = 420;
-                            else if (queueData.MapID == mapHowlingAbyss)
-                                queueData.ID = 450;
-                        }
-
-                        shouldFetchBaseVariables = false;
-                    }
-
-                    if ((queueData.MapID == mapSummonersRift && Settings.Current.MapSummonersLift) || (queueData.MapID == mapHowlingAbyss && Settings.Current.MapHowlingAbyss))
-                    {
-                        var championId = await GetSelectedChampionId();
-
-                        if (latestChampionId != championId)
-                        {
-                            var summonerData = await GetSummonerData();
-                            var recommendedRole = await GetRecommendedRole(championId);
-                            var recommendedData = await GetRecommendedData(queueData, championId, currentVersion);
-                            var recommendedDataWithRole = recommendedData.Linq.Select(x => x.Value).FirstOrDefault(x => x["role"] == recommendedRole);
-
-                            if (recommendedDataWithRole == null)
-                                recommendedDataWithRole = recommendedData[0];
-
-                            Log("summonerData.ID={0}, summonerData.Level={1}, championId={2}, recommendedRole={3}", summonerData.ID, summonerData.Level, championId, recommendedRole);
-
-                            if (Settings.Current.ApplySpells)
-                                await SetSpells(summonerData, recommendedDataWithRole);
-
-                            if (Settings.Current.ApplyRunes && summonerData.Level >= 10)
-                                await SetRunes(championId, recommendedDataWithRole);
-
-                            latestChampionId = championId;
-                        }
-
-                        await Task.Delay(500);
-                    }
-                    else
-                    {
-                        await Task.Delay(2000);
-                    }
+                    await Task.Delay(5000);
+                    continue;
                 }
 
-                IsBusy = false;
+                while (true)
+                {
+                    if (process.HasExited)
+                        break;
 
-                await Task.Delay(2000);
+                    var latestChampionId = 0;
+                    var shouldFetchBaseVariables = true;
+                    var currentVersion = string.Empty;
+                    var queueData = default(QueueData);
+
+                    while (await GetGameflowPhase() == "ChampSelect")
+                    {
+                        IsBusy = true;
+
+                        if (shouldFetchBaseVariables)
+                        {
+                            currentVersion = await GetCurrentVersion();
+                            queueData = await GetQueueData();
+
+                            Log("queueData.ID={0}, queueData.MapID={1}, gameVersion={2}", queueData.ID, queueData.MapID, currentVersion);
+
+                            if (queueData.ID == -1) // Custom?
+                            {
+                                if (queueData.MapID == mapSummonersRift)
+                                    queueData.ID = 420;
+                                else if (queueData.MapID == mapHowlingAbyss)
+                                    queueData.ID = 450;
+                            }
+
+                            shouldFetchBaseVariables = false;
+                        }
+
+                        if ((queueData.MapID == mapSummonersRift && Settings.Current.MapSummonersLift) || (queueData.MapID == mapHowlingAbyss && Settings.Current.MapHowlingAbyss))
+                        {
+                            var championId = await GetSelectedChampionId();
+
+                            if (latestChampionId != championId)
+                            {
+                                var summonerData = await GetSummonerData();
+                                var recommendedRole = await GetRecommendedRole(championId);
+                                var recommendedData = await GetRecommendedData(queueData, championId, currentVersion);
+                                var recommendedDataWithRole = recommendedData.Linq.Select(x => x.Value).FirstOrDefault(x => x["role"] == recommendedRole);
+
+                                if (recommendedDataWithRole == null)
+                                    recommendedDataWithRole = recommendedData[0];
+
+                                Log("summonerData.ID={0}, summonerData.Level={1}, championId={2}, recommendedRole={3}", summonerData.ID, summonerData.Level, championId, recommendedRole);
+
+                                if (Settings.Current.ApplySpells)
+                                    await SetSpells(summonerData, recommendedDataWithRole);
+
+                                if (Settings.Current.ApplyRunes && summonerData.Level >= 10)
+                                    await SetRunes(championId, recommendedDataWithRole);
+
+                                latestChampionId = championId;
+                            }
+
+                            await Task.Delay(500);
+                        }
+                        else
+                        {
+                            await Task.Delay(2000);
+                        }
+                    }
+
+                    IsBusy = false;
+
+                    await Task.Delay(2000);
+                }                
             }
         }
 
