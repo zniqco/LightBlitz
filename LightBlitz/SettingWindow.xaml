@@ -1,0 +1,55 @@
+﻿<Window x:Class="LightBlitz.SettingWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:LightBlitz"
+        mc:Ignorable="d"
+        Title="Settings" WindowStartupLocation="CenterScreen" Width="200" SizeToContent="Height" ResizeMode="NoResize" ShowInTaskbar="False" Loaded="Window_Loaded">
+    <Grid>
+        <Grid.Resources>
+            <Style TargetType="{x:Type CheckBox}" BasedOn="{StaticResource {x:Type CheckBox}}">
+                <Style.Setters>
+                    <Setter Property="Margin" Value="0,2" />
+                    <Setter Property="VerticalContentAlignment" Value="Center" />
+                </Style.Setters>
+            </Style>
+        </Grid.Resources>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="8"/>
+            <ColumnDefinition Width="*"/>
+            <ColumnDefinition Width="8"/>
+        </Grid.ColumnDefinitions>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="8"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="8"/>
+        </Grid.RowDefinitions>
+        <StackPanel Grid.Column="1" Grid.Row="1">
+            <GroupBox Header="General settings">
+                <StackPanel Margin="4,2">
+                    <CheckBox x:Name="LaunchAppAtLoginCheckBox" Content="Launch app at login"/>
+                </StackPanel>
+            </GroupBox>
+            <GroupBox Header="Apply settings">
+                <StackPanel Margin="4,2">
+                    <CheckBox x:Name="ApplySpellsCheckBox" Content="Spells"/>
+                    <CheckBox x:Name="ApplyRunesCheckBox" Content="Runes"/>
+                    <CheckBox x:Name="ApplyItemBuildsCheckBox" Content="Item builds" IsEnabled="False"/>
+                    <Rectangle Margin="0,4" Height="1" Fill="{DynamicResource {x:Static SystemColors.ControlBrushKey}}"/>
+                    <CheckBox x:Name="BlinkToRightCheckBox" Content="Blink spell to right"/>
+                </StackPanel>
+            </GroupBox>
+            <GroupBox Header="Apply maps" Margin="0,6,0,0">
+                <StackPanel Margin="4,2">
+                    <CheckBox x:Name="MapSummonersRiftCheckBox" Content="Summoner's Rift"/>
+                    <CheckBox x:Name="MapHowlingAbyssCheckBox"  Content="Howling Abyss"/>
+                </StackPanel>
+            </GroupBox>
+            <StackPanel Orientation="Horizontal" Margin="0,8,0,0" HorizontalAlignment="Right" Height="24">
+                <Button Width="68" Content="OK" IsDefault="True" Click="ConfirmButton_Click"/>
+                <Button Width="68" Content="Cancel" IsCancel="True" Margin="6,0,0,0" Click="CancelButton_Click"/>
+            </StackPanel>
+        </StackPanel>
+    </Grid>
+</Window>
