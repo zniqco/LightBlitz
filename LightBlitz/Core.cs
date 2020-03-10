@@ -381,6 +381,10 @@ namespace LightBlitz
                 else
                     return null;
             }
+            catch (OperationCanceledException)
+            {
+                return null;
+            }
             catch (HttpRequestException)
             {
                 return null;
@@ -397,6 +401,10 @@ namespace LightBlitz
                     return JSON.Parse(await response.Content.ReadAsStringAsync());
                 else
                     return null;
+            }
+            catch (OperationCanceledException)
+            {
+                return null;
             }
             catch (HttpRequestException)
             {
