@@ -48,12 +48,7 @@ namespace LightBlitz
             set
             {
                 lock (isBusyLockObject)
-                {
-                    if (isBusy != value)
-                        Log("isBusy: {0}", value);
-
                     isBusy = value;
-                }
             }
         }
 
