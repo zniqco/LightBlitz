@@ -102,6 +102,7 @@ namespace LightBlitz
                     var shouldFetchBaseVariables = true;
                     var currentVersion = string.Empty;
                     var queueData = default(QueueData);
+                    var summonerData = default(SummonerData);
 
                     while (await GetGameflowPhase() == "ChampSelect")
                     {
@@ -111,6 +112,7 @@ namespace LightBlitz
                         {
                             currentVersion = await GetCurrentVersion();
                             queueData = await GetQueueData();
+                            summonerData = await GetSummonerData();
 
                             Log("queueData.ID={0}, queueData.MapID={1}, gameVersion={2}", queueData.ID, queueData.MapID, currentVersion);
 
@@ -127,11 +129,10 @@ namespace LightBlitz
 
                         if ((queueData.MapID == mapSummonersRift && Settings.Current.MapSummonersLift) || (queueData.MapID == mapHowlingAbyss && Settings.Current.MapHowlingAbyss))
                         {
-                            var championId = await GetSelectedChampionId();
+                            var championId = await GetSelectedChampionId(summonerData.ID);
 
                             if (latestChampionId != championId)
                             {
-                                var summonerData = await GetSummonerData();
                                 var recommendedRole = await GetRecommendedRole(championId);
                                 var recommendedData = await GetRecommendedData(queueData, championId, currentVersion);
                                 var recommendedDataWithRole = recommendedData.Linq.Select(x => x.Value).FirstOrDefault(x => x["role"] == recommendedRole);
@@ -139,7 +140,7 @@ namespace LightBlitz
                                 if (recommendedDataWithRole == null)
                                     recommendedDataWithRole = recommendedData[0];
 
-                                Log("summonerData.ID={0}, summonerData.Level={1}, championId={2}, recommendedRole={3}", summonerData.ID, summonerData.Level, championId, recommendedRole);
+                                Log("championId={0}, recommendedRole={1}", championId, recommendedRole);
 
                                 if (Settings.Current.ApplySpells)
                                     await SetSpells(summonerData, recommendedDataWithRole);
@@ -191,14 +192,23 @@ namespace LightBlitz
             return new SummonerData();
         }
 
-        private async Task<int> GetSelectedChampionId()
+        private async Task<int> GetSelectedChampionId(int summonerId)
         {
-            var result = await LeagueRequestRaw(HttpMethod.Get, "lol-champ-select/v1/current-champion");
+            var result = await LeagueRequest(HttpMethod.Get, "lol-champ-select/v1/session");
 
-            if (result != null && int.TryParse(result, out int champion))
-                return champion;
+            if (result == null)
+                return 0;
 
-            return 0;
+            var cellId = result["localPlayerCellId"].Value;
+            var action = result["actions"][0].Linq.Select(x => x.Value).FirstOrDefault(x => x["actorCellId"].Value == cellId);
+
+            if (action == null)
+                return 0;
+
+            if (!action["completed"].AsBool || action["type"].Value != "pick")
+                return 0;
+
+            return action["championId"].AsInt;
         }
 
         private async Task<QueueData> GetQueueData()
