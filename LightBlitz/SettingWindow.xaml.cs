@@ -25,9 +25,9 @@ namespace LightBlitz
 
         protected override void OnSourceInitialized(EventArgs e)
         {
-            NativeWrapper.RemoveWindowIcon(this);
-
             base.OnSourceInitialized(e);
+
+            NativeWrapper.RemoveWindowIcon(this);
         }
 
         private void Window_Loaded(object sender, RoutedEventArgs e)
