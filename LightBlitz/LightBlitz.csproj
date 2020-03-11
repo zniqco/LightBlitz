@@ -72,7 +72,6 @@
       <DependentUpon>SettingWindow.xaml</DependentUpon>
     </Compile>
     <Compile Include="SimpleJSON.cs" />
-    <Compile Include="Utilities.cs" />
     <Compile Include="NativeWrapper.cs" />
   </ItemGroup>
   <ItemGroup>
