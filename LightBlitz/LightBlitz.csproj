@@ -43,6 +43,8 @@
     <Reference Include="System" />
     <Reference Include="System.Data" />
     <Reference Include="System.Drawing" />
+    <Reference Include="System.Numerics" />
+    <Reference Include="System.Runtime.Serialization" />
     <Reference Include="System.Xml" />
     <Reference Include="Microsoft.CSharp" />
     <Reference Include="System.Core" />
@@ -67,11 +69,11 @@
       <DesignTime>True</DesignTime>
       <DependentUpon>Resources.resx</DependentUpon>
     </Compile>
+    <Compile Include="RequiredContractResolver.cs" />
     <Compile Include="Settings.cs" />
     <Compile Include="SettingWindow.xaml.cs">
       <DependentUpon>SettingWindow.xaml</DependentUpon>
     </Compile>
-    <Compile Include="SimpleJSON.cs" />
     <Compile Include="NativeWrapper.cs" />
   </ItemGroup>
   <ItemGroup>
@@ -116,10 +118,13 @@
     <PostBuildEvent>if $(ConfigurationName) == Release (
   move "$(TargetPath)" "$(TargetPath).original.exe"
 
-  $(ILMergeConsolePath) "$(TargetPath).original.exe" /out:"$(TargetPath)" "$(TargetDir)\Hardcodet.Wpf.TaskbarNotification.dll"
+  $(ILMergeConsolePath) "$(TargetPath).original.exe" /out:"$(TargetPath)" ^
+    "$(TargetDir)\Hardcodet.Wpf.TaskbarNotification.dll" ^
+    "$(TargetDir)\Newtonsoft.Json.dll"
 
   del "$(TargetPath).original.exe"
   del "$(TargetDir)\Hardcodet.Wpf.TaskbarNotification.*"
+  del "$(TargetDir)\Newtonsoft.Json.*"
 )</PostBuildEvent>
   </PropertyGroup>
 </Project>

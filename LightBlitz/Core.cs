@@ -1,4 +1,4 @@
-﻿using SimpleJSON;
+﻿using Newtonsoft.Json;
 using System;
 using System.Diagnostics;
 using System.IO;
@@ -15,21 +15,134 @@ namespace LightBlitz
 {
     class Core
     {
-        private struct SummonerData
+        public class LeagueGameflowSession
         {
-            public int ID;
-            public int Level;
+            public class GameData
+            {
+                public class Queue
+                {
+                    public int id { get; set; }
+                    public int mapId { get; set; }
+                }
+
+                public Queue queue { get; set; }
+            }
+
+            public GameData gameData { get; set; }
+            public string phase { get; set; }
         }
 
-        private struct QueueData
+        public class LeagueSummonerCurrentSummoner
         {
-            public int ID;
-            public int MapID;
+            public int summonerId { get; set; }
+            public int summonerLevel { get; set; }
+        }
+
+        public class LeagueChampSelectSession
+        {
+            public class Action
+            {
+                public int actorCellId { get; set; }
+                public int championId { get; set; }
+                public bool completed { get; set; }
+                public string type { get; set; }
+            }
+
+            public class MyTeam
+            {
+                public int summonerId { get; set; }
+                public int selectedSkinId { get; set; }
+                public int spell1Id { get; set; }
+                public int spell2Id { get; set; }
+                public int wardSkinId { get; set; }
+            }
+
+            public Action[][] actions { get; set; }
+            public int localPlayerCellId { get; set; }
+            public MyTeam[] myTeam { get; set; }
+        }
+
+        public class LeagueChampSelectGridChampions
+        {
+            public string name { get; set; }
+        }
+
+        public class LeagueChampSelectSessionMySelectionPatch
+        {
+            public int selectedSkinId { get; set; }
+            public int spell1Id { get; set; }
+            public int spell2Id { get; set; }
+            public int wardSkinId { get; set; }
+        }
+
+        public class LeaguePerksPage
+        {
+            public int id { get; set; }
+            public bool isEditable { get; set; }
+            public string name { get; set; }
+        }
+
+        public class LeaguePerksPagePost
+        {
+            public string name { get; set; }
+            public int primaryStyleId { get; set; }
+            public int[] selectedPerkIds { get; set; }
+            public int subStyleId { get; set; }
+        }
+
+        public class BlitzChampions
+        {
+            public class Data
+            {
+                public class Stats
+                {
+                    public class Runes
+                    {
+                        public int[] build { get; set; }
+                    }
+
+                    public class RuneStatShards
+                    {
+                        public int[] build { get; set; }
+                    }
+
+                    public class Spells
+                    {
+                        public int[] build { get; set; }
+                    }
+
+                    public Runes runes { get; set; }
+                    public RuneStatShards rune_stat_shards { get; set; }
+                    public Spells spells { get; set; }
+                }
+
+                public string role { get; set; }
+                public Stats stats { get; set; }
+            }
+
+            public Data[] data { get; set; }
+        }
+
+        public class BlitzChampionsRole
+        {
+            public string role { get; set; }
+        }
+
+        public class BlitzPatchesCurrent
+        {
+            public class Data
+            {
+                public string patch { get; set; }
+            }
+
+            public Data data { get; set; }
         }
 
         private const string runePagePrefix = "LightBlitz: ";
         private const int mapSummonersRift = 11;
         private const int mapHowlingAbyss = 12;
+
+        private readonly JsonSerializerSettings jsonSerializerSettings;
 
         private Thread thread;
         private HttpClient httpClient;
@@ -60,9 +173,13 @@ namespace LightBlitz
             httpClient = new HttpClient();
             httpClient.Timeout = TimeSpan.FromSeconds(20.0);
 
-            ServicePointManager.Expect100Continue = true;
             ServicePointManager.SecurityProtocol = SecurityProtocolType.Ssl3 | SecurityProtocolType.Tls | SecurityProtocolType.Tls11 | SecurityProtocolType.Tls12;
             ServicePointManager.ServerCertificateValidationCallback = ServerCertificateValidationCallback;
+
+            jsonSerializerSettings = new JsonSerializerSettings()
+            {
+                ContractResolver = new RequiredContractResolver()
+            };
         }
 
         public void Start()
@@ -99,53 +216,36 @@ namespace LightBlitz
                         break;
 
                     var latestChampionId = 0;
-                    var shouldFetchBaseVariables = true;
-                    var currentVersion = string.Empty;
-                    var queueData = default(QueueData);
-                    var summonerData = default(SummonerData);
-
-                    while (await GetGameflowPhase() == "ChampSelect")
+                    while (true)
                     {
+                        var gameflowSession = await GetGameflowSession();
+
+                        if (gameflowSession == null || gameflowSession.phase != "ChampSelect")
+                            break;
+
                         IsBusy = true;
 
-                        if (shouldFetchBaseVariables)
+                        if ((gameflowSession.gameData.queue.mapId == mapSummonersRift && Settings.Current.MapSummonersLift) || (gameflowSession.gameData.queue.mapId == mapHowlingAbyss && Settings.Current.MapHowlingAbyss))
                         {
-                            currentVersion = await GetCurrentVersion();
-                            queueData = await GetQueueData();
-                            summonerData = await GetSummonerData();
-
-                            Log("queueData.ID={0}, queueData.MapID={1}, gameVersion={2}", queueData.ID, queueData.MapID, currentVersion);
-
-                            if (queueData.ID == -1) // Custom?
-                            {
-                                if (queueData.MapID == mapSummonersRift)
-                                    queueData.ID = 420;
-                                else if (queueData.MapID == mapHowlingAbyss)
-                                    queueData.ID = 450;
-                            }
-
-                            shouldFetchBaseVariables = false;
-                        }
-
-                        if ((queueData.MapID == mapSummonersRift && Settings.Current.MapSummonersLift) || (queueData.MapID == mapHowlingAbyss && Settings.Current.MapHowlingAbyss))
-                        {
-                            var championId = await GetSelectedChampionId(summonerData.ID);
+                            var championId = await GetSelectedChampionId();
 
                             if (latestChampionId != championId)
                             {
-                                var recommendedRole = await GetRecommendedRole(championId);
-                                var recommendedData = await GetRecommendedData(queueData, championId, currentVersion);
-                                var recommendedDataWithRole = recommendedData.Linq.Select(x => x.Value).FirstOrDefault(x => x["role"] == recommendedRole);
+                                var currentVersion = await GetBlitzCurrentVersion();
+                                var summonerData = await GetSummoner();
+                                var recommendedRole = await GetBlitzRecommendedRole(championId);
+                                var recommendedData = await GetBlitzRecommendedData(gameflowSession, championId, currentVersion);
+                                var recommendedDataWithRole = recommendedData.data.FirstOrDefault(x => x.role == recommendedRole);
 
                                 if (recommendedDataWithRole == null)
-                                    recommendedDataWithRole = recommendedData[0];
+                                    recommendedDataWithRole = recommendedData.data[0];
 
                                 Log("championId={0}, recommendedRole={1}", championId, recommendedRole);
 
                                 if (Settings.Current.ApplySpells)
                                     await SetSpells(summonerData, recommendedDataWithRole);
 
-                                if (Settings.Current.ApplyRunes && summonerData.Level >= 10)
+                                if (Settings.Current.ApplyRunes && summonerData.summonerLevel >= 10)
                                     await SetRunes(championId, recommendedDataWithRole);
 
                                 latestChampionId = championId;
@@ -166,210 +266,192 @@ namespace LightBlitz
             }
         }
 
-        private async Task<string> GetGameflowPhase()
+        private async Task<LeagueGameflowSession> GetGameflowSession()
         {
-            var result = await LeagueRequestRaw(HttpMethod.Get, "lol-gameflow/v1/gameflow-phase");
-
-            if (result != null)
-                return result.Trim('\"');
-
-            return string.Empty;
+            return await LeagueRequest<LeagueGameflowSession>(HttpMethod.Get, "lol-gameflow/v1/session");
         }
 
-        private async Task<SummonerData> GetSummonerData()
+        private async Task<LeagueSummonerCurrentSummoner> GetSummoner()
         {
-            var result = await LeagueRequest(HttpMethod.Get, "lol-summoner/v1/current-summoner");
-
-            if (result != null)
-            {
-                return new SummonerData()
-                {
-                    ID = result["summonerId"].AsInt,
-                    Level = result["summonerLevel"].AsInt,
-                };
-            }
-
-            return new SummonerData();
+            return await LeagueRequest<LeagueSummonerCurrentSummoner>(HttpMethod.Get, "lol-summoner/v1/current-summoner");
         }
 
-        private async Task<int> GetSelectedChampionId(int summonerId)
+        private async Task<int> GetSelectedChampionId()
         {
-            var result = await LeagueRequest(HttpMethod.Get, "lol-champ-select/v1/session");
+            var result = await LeagueRequest<LeagueChampSelectSession>(HttpMethod.Get, "lol-champ-select/v1/session");
 
             if (result == null)
                 return 0;
 
-            var cellId = result["localPlayerCellId"].Value;
-            var action = result["actions"][0].Linq.Select(x => x.Value).FirstOrDefault(x => x["actorCellId"].Value == cellId);
+            var action = result.actions.SelectMany(x => x).FirstOrDefault(x => x.actorCellId == result.localPlayerCellId);
 
-            if (action == null)
+            if (action == null || !action.completed || action.type != "pick")
                 return 0;
 
-            if (!action["completed"].AsBool || action["type"].Value != "pick")
-                return 0;
-
-            return action["championId"].AsInt;
+            return action.championId;
         }
 
-        private async Task<QueueData> GetQueueData()
+        private async Task<string> GetChampionName(int championId)
         {
-            var result = await LeagueRequest(HttpMethod.Get, "lol-gameflow/v1/session");
+            var result = await LeagueRequest<LeagueChampSelectGridChampions>(HttpMethod.Get, "lol-champ-select/v1/grid-champions/" + championId.ToString());
 
-            if (result != null)
+            if (result == null)
+                return string.Empty;
+
+            return result.name;
+        }
+
+        private async Task<string> GetBlitzCurrentVersion()
+        {
+            var result = await BlitzRequest<BlitzPatchesCurrent>("patches/current");
+
+            if (result == null)
+                return string.Empty;
+
+            return result.data.patch;
+        }
+
+        private async Task<string> GetBlitzRecommendedRole(int championId)
+        {
+            var result = await BlitzRequest<BlitzChampionsRole>(string.Format("champions/{0}/role", championId));
+
+            if (result == null)
+                return string.Empty;
+
+            return result.role;
+        }
+
+        private async Task<BlitzChampions> GetBlitzRecommendedData(LeagueGameflowSession gameflowSession, int championId, string version)
+        {
+            var queueId = gameflowSession.gameData.queue.id;
+
+            if (queueId == -1)
             {
-                var queue = result["gameData"]["queue"];
-
-                return new QueueData()
-                {
-                    ID = queue["id"].AsInt,
-                    MapID = queue["mapId"].AsInt,
-                };
+                // Resolve queueId for custom game
+                if (gameflowSession.gameData.queue.mapId == mapSummonersRift)
+                    queueId = 420;
+                else if (gameflowSession.gameData.queue.mapId == mapHowlingAbyss)
+                    queueId = 450;
             }
 
-            return new QueueData();
+            return await BlitzRequest<BlitzChampions>(string.Format("champions/{0}?patch={2}&queue={1}&region=world", championId, queueId, version));
         }
 
-        private async Task<string> GetCurrentVersion()
+        private async Task<bool> SetSpells(LeagueSummonerCurrentSummoner summonerData, BlitzChampions.Data recommendedData)
         {
-            var result = await BlitzRequest("patches/current");
-
-            if (result != null)
-                return result["data"]["patch"];
-
-            return string.Empty;
-        }
-
-        private async Task<string> GetRecommendedRole(int championId)
-        {
-            var result = await BlitzRequest(string.Format("champions/{0}/role", championId));
-
-            if (result != null)
-                return result["role"];
-
-            return string.Empty;
-        }
-
-        private async Task<JSONArray> GetRecommendedData(QueueData queueData, int championId, string version)
-        {
-            var url = string.Format("champions/{0}?patch={2}&queue={1}&region=world", championId, queueData.ID, version);
-            var result = await BlitzRequest(url);
-
-            if (result != null)
-                return result["data"].AsArray;
-
-            return new JSONArray();
-        }
-
-        private async Task<bool> SetSpells(SummonerData summonerData, JSONNode recommendedData)
-        {
-            var result = await LeagueRequest(HttpMethod.Get, "lol-champ-select/v1/session");
+            var result = await LeagueRequest<LeagueChampSelectSession>(HttpMethod.Get, "lol-champ-select/v1/session");
 
             if (result == null)
                 return false;
 
-            var summoner = result["myTeam"].Linq.Select(x => x.Value).FirstOrDefault(x => x["summonerId"].AsInt == summonerData.ID);
+            var summoner = result.myTeam.FirstOrDefault(x => x.summonerId == summonerData.summonerId);
 
             if (summoner == null)
                 return false;
 
-            var spell1 = recommendedData["stats"]["spells"]["build"][0].AsInt;
-            var spell2 = recommendedData["stats"]["spells"]["build"][1].AsInt;
-            var patchData = new JSONObject();
+            var data = new LeagueChampSelectSessionMySelectionPatch();
 
-            patchData["selectedSkinId"] = summoner["selectedSkinId"].AsInt;
-            patchData["spell1Id"] = summoner["spell1Id"].AsInt;
-            patchData["spell2Id"] = summoner["spell2Id"].AsInt;
-            patchData["wardSkinId"] = summoner["wardSkinId"].AsInt;
+            data.selectedSkinId = summoner.selectedSkinId;
+            data.wardSkinId = summoner.wardSkinId;
 
-            // TODO: Get spell datas and check level
-            // var spellDatas = await LeagueRequest(HttpMethod.Get, "lol-game-data/assets/v1/summoner-spells.json");
-
-            // Set spells
-            if (Settings.Current.BlinkToRight && spell1 == 4)
+            if (Settings.Current.BlinkToRight && recommendedData.stats.spells.build[0] == 4)
             {
-                spell1 = spell2;
-                spell2 = 4;
+                data.spell1Id = recommendedData.stats.spells.build[1];
+                data.spell2Id = recommendedData.stats.spells.build[0];
+            }
+            else
+            {
+                data.spell1Id = recommendedData.stats.spells.build[0];
+                data.spell2Id = recommendedData.stats.spells.build[1];
             }
 
-            patchData["spell1Id"] = spell1;
-            patchData["spell2Id"] = spell2;
+            var json = JsonConvert.SerializeObject(data);
+            var selectResult = await LeagueRequestRaw(new HttpMethod("PATCH"), "lol-champ-select/v1/session/my-selection", new StringContent(json, Encoding.UTF8, "application/json"));
 
-            result = await LeagueRequestRaw(new HttpMethod("PATCH"), "lol-champ-select/v1/session/my-selection", new StringContent(patchData.ToString(), Encoding.UTF8, "application/json"));
-
-            if (result == null)
+            if (selectResult == null)
                 return false;
 
             return true;
         }
 
-        private async Task<bool> SetRunes(int championId, JSONNode recommendedData)
+        private async Task<bool> SetRunes(int championId, BlitzChampions.Data recommendedData)
         {
             // Get champion name
-            var result = await LeagueRequest(HttpMethod.Get, "lol-champ-select/v1/grid-champions/" + championId.ToString());
-
-            if (result == null)
-                return false;
-
-            var championName = result["name"].Value;
+            var championName = await GetChampionName(championId);
 
             // Get pages
-            result = await LeagueRequest(HttpMethod.Get, "lol-perks/v1/pages");
+            var pages = await LeagueRequest<LeaguePerksPage[]>(HttpMethod.Get, "lol-perks/v1/pages");
 
-            if (result == null)
+            if (pages == null)
                 return false;
 
             // Set to any default pages
-            var pages = result.Linq.Select(x => x.Value).ToArray();
-            var anyDefaultPage = pages.FirstOrDefault(x => !x["isEditable"].AsBool);
+            var anyDefaultPage = pages.FirstOrDefault(x => !x.isEditable);
 
-            await LeagueRequestRaw(HttpMethod.Put, "lol-perks/v1/currentpage", new StringContent(anyDefaultPage["id"].Value, Encoding.UTF8));
+            if (anyDefaultPage == null)
+                return false;
+
+            await LeagueRequestRaw(HttpMethod.Put, "lol-perks/v1/currentpage", new StringContent(anyDefaultPage.id.ToString(), Encoding.UTF8));
 
             // Delete exist LightBlitz pages
-            foreach (var page in pages.Where(x => x["isEditable"].AsBool && x["name"].Value.StartsWith(runePagePrefix)))
-                result = await LeagueRequestRaw(HttpMethod.Delete, "lol-perks/v1/pages/" + page["id"].Value);
+            foreach (var page in pages.Where(x => x.isEditable && x.name.StartsWith(runePagePrefix)))
+                await LeagueRequestRaw(HttpMethod.Delete, "lol-perks/v1/pages/" + page.id.ToString());
 
             // Create page
-            var postData = new JSONObject();
-            var recommendedRunes = recommendedData["stats"]["runes"]["build"];
-            var recommendedRuneShards = recommendedData["stats"]["rune_stat_shards"]["build"];
-            var recommendedRole = recommendedData["role"].Value;
+            if (recommendedData.stats.runes.build.Length < 8 || recommendedData.stats.rune_stat_shards.build.Length < 3)
+                return false;
 
-            postData["name"] = runePagePrefix + championName + (recommendedRole.Length > 0 ? string.Format(" ({0})", recommendedRole) : string.Empty);
-            postData["primaryStyleId"] = recommendedRunes[0];
-            postData["selectedPerkIds"] = new JSONArray();
-            postData["selectedPerkIds"].Add(recommendedRunes[1]);
-            postData["selectedPerkIds"].Add(recommendedRunes[2]);
-            postData["selectedPerkIds"].Add(recommendedRunes[3]);
-            postData["selectedPerkIds"].Add(recommendedRunes[4]);
-            postData["selectedPerkIds"].Add(recommendedRunes[6]);
-            postData["selectedPerkIds"].Add(recommendedRunes[7]);
-            postData["selectedPerkIds"].Add(recommendedRuneShards[0]);
-            postData["selectedPerkIds"].Add(recommendedRuneShards[1]);
-            postData["selectedPerkIds"].Add(recommendedRuneShards[2]);
-            postData["subStyleId"] = recommendedRunes[5];
+            var data = new LeaguePerksPagePost();
 
-            result = await LeagueRequest(HttpMethod.Post, "lol-perks/v1/pages", new StringContent(postData.ToString(), Encoding.UTF8, "application/json"));
+            data.name = runePagePrefix + championName + (recommendedData.role.Length > 0 ? string.Format(" ({0})", recommendedData.role) : string.Empty);
+            data.primaryStyleId = recommendedData.stats.runes.build[0];
 
-            if (result == null)
+            data.selectedPerkIds = new int[]
+            {
+                recommendedData.stats.runes.build[1],
+                recommendedData.stats.runes.build[2],
+                recommendedData.stats.runes.build[3],
+                recommendedData.stats.runes.build[4],
+                recommendedData.stats.runes.build[6],
+                recommendedData.stats.runes.build[7],
+                recommendedData.stats.rune_stat_shards.build[0],
+                recommendedData.stats.rune_stat_shards.build[1],
+                recommendedData.stats.rune_stat_shards.build[2],
+            };
+
+            data.subStyleId = recommendedData.stats.runes.build[5];
+
+            var json = JsonConvert.SerializeObject(data);
+            var newPage = await LeagueRequest<LeaguePerksPage>(HttpMethod.Post, "lol-perks/v1/pages", new StringContent(json, Encoding.UTF8, "application/json"));
+
+            if (newPage == null)
                 return false;
 
             // Set page
-            result = await LeagueRequestRaw(HttpMethod.Put, "lol-perks/v1/currentpage", new StringContent(result["id"].Value, Encoding.UTF8));
+            var setResult = await LeagueRequestRaw(HttpMethod.Put, "lol-perks/v1/currentpage", new StringContent(newPage.id.ToString(), Encoding.UTF8));
 
-            if (result == null)
+            if (setResult == null)
                 return false;
 
             return true;
         }
 
-        private async Task<JSONNode> LeagueRequest(HttpMethod method, string url, HttpContent content = null)
+        private async Task<T> LeagueRequest<T>(HttpMethod method, string url, HttpContent content = null)
         {
             var result = await LeagueRequestRaw(method, url, content);
 
             if (result != null)
-                return JSON.Parse(result);
-            else
-                return null;
+            {
+                try
+                {
+                    return JsonConvert.DeserializeObject<T>(result, jsonSerializerSettings);
+                }
+                catch (JsonSerializationException)
+                {
+                }
+            }
+
+            return default(T);
         }
 
         private async Task<string> LeagueRequestRaw(HttpMethod method, string url, HttpContent content = null)
@@ -398,25 +480,31 @@ namespace LightBlitz
             }
         }
 
-        private async Task<JSONNode> BlitzRequest(string url)
+        private async Task<T> BlitzRequest<T>(string url)
         {
             try
             {
                 var response = await httpClient.GetAsync("https://beta.iesdev.com/api/lolstats/" + url);
 
                 if (response.IsSuccessStatusCode)
-                    return JSON.Parse(await response.Content.ReadAsStringAsync());
-                else
-                    return null;
+                {
+                    try
+                    {
+                        return JsonConvert.DeserializeObject<T>(await response.Content.ReadAsStringAsync(), jsonSerializerSettings);
+                    }
+                    catch (JsonSerializationException)
+                    {
+                    }
+                }
             }
             catch (OperationCanceledException)
             {
-                return null;
             }
             catch (HttpRequestException)
             {
-                return null;
             }
+
+            return default(T);
         }
 
         private bool GetLeagueClientInformation(out Process process)
