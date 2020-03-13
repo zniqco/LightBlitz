@@ -1,5 +1,6 @@
 ﻿using Newtonsoft.Json;
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
@@ -142,11 +143,12 @@ namespace LightBlitz
         private const int mapSummonersRift = 11;
         private const int mapHowlingAbyss = 12;
 
+        private readonly HttpClient httpClient = new HttpClient();
+        private readonly HttpClient leagueHttpClient = new HttpClient();
+        private readonly Champions champions = new Champions();
         private readonly JsonSerializerSettings jsonSerializerSettings;
 
         private Thread thread;
-        private HttpClient httpClient;
-        private HttpClient leagueHttpClient;
         private bool isBusy;
         private object isBusyLockObject = new object();
 
@@ -166,19 +168,16 @@ namespace LightBlitz
 
         public Core()
         {
-            leagueHttpClient = new HttpClient();
-            leagueHttpClient.Timeout = TimeSpan.FromSeconds(5.0);
-
-            httpClient = new HttpClient();
             httpClient.Timeout = TimeSpan.FromSeconds(20.0);
-
-            ServicePointManager.SecurityProtocol = SecurityProtocolType.Ssl3 | SecurityProtocolType.Tls | SecurityProtocolType.Tls11 | SecurityProtocolType.Tls12;
-            ServicePointManager.ServerCertificateValidationCallback = ServerCertificateValidationCallback;
+            leagueHttpClient.Timeout = TimeSpan.FromSeconds(5.0);
 
             jsonSerializerSettings = new JsonSerializerSettings()
             {
                 ContractResolver = new RequiredContractResolver()
             };
+
+            ServicePointManager.SecurityProtocol = SecurityProtocolType.Ssl3 | SecurityProtocolType.Tls | SecurityProtocolType.Tls11 | SecurityProtocolType.Tls12;
+            ServicePointManager.ServerCertificateValidationCallback = ServerCertificateValidationCallback;
         }
 
         public void Start()
@@ -209,12 +208,15 @@ namespace LightBlitz
                     continue;
                 }
 
+                await champions.Load(leagueHttpClient);
+
                 while (true)
                 {
                     if (process.HasExited)
                         break;
 
                     var latestChampionId = 0;
+
                     while (true)
                     {
                         var gameflowSession = await GetGameflowSession();
@@ -288,16 +290,6 @@ namespace LightBlitz
                 return 0;
 
             return action.championId;
-        }
-
-        private async Task<string> GetChampionName(int championId)
-        {
-            var result = await LeagueRequest<LeagueChampSelectGridChampions>(HttpMethod.Get, "lol-champ-select/v1/grid-champions/" + championId.ToString());
-
-            if (result == null)
-                return string.Empty;
-
-            return result.name;
         }
 
         private async Task<string> GetBlitzCurrentVersion()
@@ -375,9 +367,6 @@ namespace LightBlitz
 
         private async Task<bool> SetRunes(int championId, BlitzChampions.Data recommendedData)
         {
-            // Get champion name
-            var championName = await GetChampionName(championId);
-
             // Get pages
             var pages = await LeagueRequest<LeaguePerksPage[]>(HttpMethod.Get, "lol-perks/v1/pages");
 
@@ -401,6 +390,7 @@ namespace LightBlitz
                 return false;
 
             var data = new LeaguePerksPagePost();
+            var championName = champions.GetName(championId);
 
             data.name = runePagePrefix + championName + (recommendedData.role.Length > 0 ? string.Format(" ({0})", recommendedData.role) : string.Empty);
             data.primaryStyleId = recommendedData.stats.runes.build[0];
