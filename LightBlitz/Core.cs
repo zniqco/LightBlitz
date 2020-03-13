@@ -241,7 +241,7 @@ namespace LightBlitz
                                 if (recommendedDataWithRole == null)
                                     recommendedDataWithRole = recommendedData.data[0];
 
-                                Log("championId={0}, recommendedRole={1}", championId, recommendedRole);
+                                Debug.WriteLine("championId={0}, recommendedRole={1}", championId, recommendedRole);
 
                                 if (Settings.Current.ApplySpells)
                                     await SetSpells(summonerData, recommendedDataWithRole);
@@ -518,7 +518,7 @@ namespace LightBlitz
                         if (splitted.Length != 5)
                             continue;
 
-                        Log("port={0}, password={1}", splitted[2], splitted[3]);
+                        Debug.WriteLine("port={0}, password={1}", splitted[2], splitted[3]);
 
                         leagueHttpClient.BaseAddress = new Uri(string.Format("https://127.0.0.1:{0}", splitted[2]));
                         leagueHttpClient.DefaultRequestHeaders.Remove("Authorization");
@@ -532,21 +532,6 @@ namespace LightBlitz
             }
 
             return false;
-        }
-
-        private void Log(string message)
-        {
-            Debug.WriteLine("[{0}] {1}", DateTime.Now, message);
-        }
-
-        private void Log(object value)
-        {
-            Debug.WriteLine("[{0}] {1}", DateTime.Now, value);
-        }
-
-        private void Log(string format, params object[] args)
-        {
-            Debug.WriteLine(string.Format("[{0}] {1}", DateTime.Now, format), args);
         }
 
         private bool ServerCertificateValidationCallback(object sender, X509Certificate certificate, X509Chain chain, SslPolicyErrors sslPolicyErrors)
