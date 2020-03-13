@@ -147,7 +147,6 @@ namespace LightBlitz
         private Thread thread;
         private HttpClient httpClient;
         private HttpClient leagueHttpClient;
-        private string leagueApiBaseUrl;
         private bool isBusy;
         private object isBusyLockObject = new object();
 
@@ -458,7 +457,7 @@ namespace LightBlitz
         {
             try
             {
-                var requestMessage = new HttpRequestMessage(method, leagueApiBaseUrl + url);
+                var requestMessage = new HttpRequestMessage(method, url);
 
                 if (content != null)
                     requestMessage.Content = content;
@@ -531,11 +530,11 @@ namespace LightBlitz
 
                         Log("port={0}, password={1}", splitted[2], splitted[3]);
 
+                        leagueHttpClient.BaseAddress = new Uri(string.Format("https://127.0.0.1:{0}", splitted[2]));
                         leagueHttpClient.DefaultRequestHeaders.Remove("Authorization");
                         leagueHttpClient.DefaultRequestHeaders.Add("Authorization", "Basic " + Convert.ToBase64String(Encoding.UTF8.GetBytes(string.Format("riot:{0}", splitted[3]))));
 
                         process = p;
-                        leagueApiBaseUrl = string.Format("https://127.0.0.1:{0}/", splitted[2]);
 
                         return true;
                     }
