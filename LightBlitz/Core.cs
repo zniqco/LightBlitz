@@ -140,12 +140,13 @@ namespace LightBlitz
         }
 
         private const string runePagePrefix = "LightBlitz: ";
-        private const int mapSummonersRift = 11;
-        private const int mapHowlingAbyss = 12;
+        private const string mapSummonersRift = "SR";
+        private const string mapHowlingAbyss = "HA";
 
         private readonly HttpClient httpClient = new HttpClient();
         private readonly HttpClient leagueHttpClient = new HttpClient();
         private readonly Champions champions = new Champions();
+        private readonly Maps maps = new Maps();
         private readonly JsonSerializerSettings jsonSerializerSettings;
 
         private Thread thread;
@@ -209,6 +210,7 @@ namespace LightBlitz
                 }
 
                 await champions.Load(leagueHttpClient);
+                await maps.Load(leagueHttpClient);
 
                 while (true)
                 {
@@ -226,7 +228,9 @@ namespace LightBlitz
 
                         IsBusy = true;
 
-                        if ((gameflowSession.gameData.queue.mapId == mapSummonersRift && Settings.Current.MapSummonersLift) || (gameflowSession.gameData.queue.mapId == mapHowlingAbyss && Settings.Current.MapHowlingAbyss))
+                        var mapStringId = maps.GetMapStringID(gameflowSession.gameData.queue.mapId);
+
+                        if ((mapStringId == mapSummonersRift && Settings.Current.MapSummonersLift) || (mapStringId == mapHowlingAbyss && Settings.Current.MapHowlingAbyss))
                         {
                             var championId = await GetSelectedChampionId();
 
