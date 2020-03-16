@@ -51,6 +51,8 @@ namespace LightBlitz
 
             public class MyTeam
             {
+                public int cellId { get; set; }
+                public int championId { get; set; }
                 public int summonerId { get; set; }
                 public int selectedSkinId { get; set; }
                 public int spell1Id { get; set; }
@@ -290,10 +292,22 @@ namespace LightBlitz
 
             var action = result.actions.SelectMany(x => x).FirstOrDefault(x => x.actorCellId == result.localPlayerCellId);
 
-            if (action == null || !action.completed || action.type != "pick")
-                return 0;
+            if (action != null)
+            {
+                if (!action.completed || action.type != "pick")
+                    return 0;
 
-            return action.championId;
+                return action.championId;
+            }
+            else
+            {
+                var summoner = result.myTeam.FirstOrDefault(x => x.cellId == result.localPlayerCellId);
+
+                if (summoner == null)
+                    return 0;
+
+                return summoner.championId;
+            }            
         }
 
         private async Task<string> GetBlitzCurrentVersion()
@@ -322,10 +336,12 @@ namespace LightBlitz
 
             if (queueId == -1)
             {
+                var mapStringId = maps.GetMapStringID(gameflowSession.gameData.queue.mapId);
+
                 // Resolve queueId for custom game
-                if (gameflowSession.gameData.queue.mapId == mapSummonersRift)
+                if (mapStringId == mapSummonersRift)
                     queueId = 420;
-                else if (gameflowSession.gameData.queue.mapId == mapHowlingAbyss)
+                else if (mapStringId == mapHowlingAbyss)
                     queueId = 450;
             }
 
