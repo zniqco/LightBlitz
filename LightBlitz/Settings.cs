@@ -12,7 +12,7 @@ namespace LightBlitz
 
         public bool ApplySpells = true;
         public bool ApplyRunes = true;
-        // public bool ApplyItemBuilds = true;
+        public bool ApplyItemBuilds = true;
         public bool BlinkToRight = false;
         public bool MapSummonersLift = true;
         public bool MapHowlingAbyss = true;

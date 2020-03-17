@@ -35,7 +35,7 @@
                 <StackPanel Margin="4,2">
                     <CheckBox x:Name="ApplySpellsCheckBox" Content="Spells"/>
                     <CheckBox x:Name="ApplyRunesCheckBox" Content="Runes"/>
-                    <CheckBox x:Name="ApplyItemBuildsCheckBox" Content="Item builds" IsEnabled="False"/>
+                    <CheckBox x:Name="ApplyItemBuildsCheckBox" Content="Item builds"/>
                     <Rectangle Margin="0,4" Height="1" Fill="{DynamicResource {x:Static SystemColors.ControlBrushKey}}"/>
                     <CheckBox x:Name="BlinkToRightCheckBox" Content="Blink spell to right"/>
                 </StackPanel>

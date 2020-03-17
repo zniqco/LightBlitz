@@ -99,24 +99,17 @@ namespace LightBlitz
             {
                 public class Stats
                 {
-                    public class Runes
+                    public class Builds
                     {
                         public int[] build { get; set; }
                     }
 
-                    public class RuneStatShards
-                    {
-                        public int[] build { get; set; }
-                    }
-
-                    public class Spells
-                    {
-                        public int[] build { get; set; }
-                    }
-
-                    public Runes runes { get; set; }
-                    public RuneStatShards rune_stat_shards { get; set; }
-                    public Spells spells { get; set; }
+                    public Builds runes { get; set; }
+                    public Builds rune_stat_shards { get; set; }
+                    public Builds spells { get; set; }
+                    public Builds starting_items { get; set; }
+                    public Builds core_builds { get; set; }
+                    public Builds big_item_builds { get; set; }
                 }
 
                 public string role { get; set; }
@@ -141,7 +134,75 @@ namespace LightBlitz
             public Data data { get; set; }
         }
 
+        public class IngameItemRecommended
+        {
+            public class Block
+            {
+                public class Item
+                {
+                    public int count { get; set; }
+                    public string id { get; set; }
+
+                    public Item()
+                    {
+                        count = 1;
+                    }
+
+                    public Item(string id) : this()
+                    {
+                        this.id = id;
+                    }
+                }
+
+                public string hideIfSummonerSpell { get; set; }
+                public Item[] items { get; set; }
+                public int maxSummonerLevel { get; set; }
+                public int minSummonerLevel { get; set; }
+                public bool recMath { get; set; }
+                public string showIfSummonerSpell { get; set; }
+                public string type { get; set; }
+
+                public Block()
+                {
+                    hideIfSummonerSpell = string.Empty;
+                    maxSummonerLevel = -1;
+                    minSummonerLevel = -1;
+                    recMath = false;
+                    showIfSummonerSpell = string.Empty;
+                }
+            }
+
+            public List<Block> blocks { get; set; }
+            public string map { get; set; }
+            public string mode { get; set; }
+            public bool priority { get; set; }
+            public int sortrank { get; set; }
+            public string title { get; set; }
+            public string type { get; set; }
+
+            public IngameItemRecommended()
+            {
+                map = "any";
+                mode = "any";
+                priority = false;
+                sortrank = -1;
+                type = "custom";
+                blocks = new List<Block>();
+            }
+
+            public void AddBlock(string name, IEnumerable<int> indexes)
+            {
+                var block = new Block();
+
+                block.items = indexes.Select(x => new Block.Item(x.ToString())).ToArray();
+                block.type = name;
+
+                blocks.Add(block);
+            }
+        }
+
         private const string runePagePrefix = "LightBlitz: ";
+        private const string itemBuildsFileName = "@lightblitz.json";
         private const string mapSummonersRift = "SR";
         private const string mapHowlingAbyss = "HA";
 
@@ -205,10 +266,20 @@ namespace LightBlitz
         {
             while (true)
             {
-                if (!GetLeagueClientInformation(out var process))
+                if (!GetLeagueClientInformation(out var process, out var path))
                 {
                     await Task.Delay(5000);
                     continue;
+                }
+
+                var championFolders = Directory.GetDirectories(Path.Combine(path, "Config/Champions"));
+
+                foreach (var championFolder in championFolders)
+                {
+                    var itemBuildsPath = Path.Combine(championFolder, "Recommended/" + itemBuildsFileName);
+
+                    if (File.Exists(itemBuildsPath))
+                        File.Delete(itemBuildsPath);
                 }
 
                 await champions.Load(leagueHttpClient);
@@ -254,6 +325,9 @@ namespace LightBlitz
 
                                 if (Settings.Current.ApplyRunes && summonerData.summonerLevel >= 10)
                                     await SetRunes(championId, recommendedDataWithRole);
+
+                                if (Settings.Current.ApplyItemBuilds)
+                                    SetItemBuilds(championId, recommendedDataWithRole, path);
 
                                 latestChampionId = championId;
                             }
@@ -445,6 +519,37 @@ namespace LightBlitz
             return true;
         }
 
+        private bool SetItemBuilds(int championId, BlitzChampions.Data recommendedData, string path)
+        {
+            try
+            {
+                string configPath = Path.Combine(path, "Config/Champions/" + champions.GetAlias(championId) + "/Recommended");
+
+                if (!Directory.Exists(configPath))
+                    Directory.CreateDirectory(configPath);
+
+                var itemBuilds = new IngameItemRecommended();
+
+                itemBuilds.title = "LightBlitz";
+
+                itemBuilds.AddBlock("Starting Items & Trinkets", recommendedData.stats.starting_items.build);
+                itemBuilds.AddBlock("Consumables", new int[] { 2003, 2031, 2033, 2138, 2139, 2140 });
+                itemBuilds.AddBlock("Core Build Path", recommendedData.stats.core_builds.build);
+                itemBuilds.AddBlock("Core Final Build", recommendedData.stats.big_item_builds.build);
+
+                var json = JsonConvert.SerializeObject(itemBuilds);
+
+                File.WriteAllText(Path.Combine(configPath, itemBuildsFileName), json);
+            }
+            catch (Exception e)
+            {
+                Debug.WriteLine(e.ToString());
+                return false;
+            }
+
+            return true;
+        }
+
         private async Task<T> LeagueRequest<T>(HttpMethod method, string url, HttpContent content = null)
         {
             var result = await LeagueRequestRaw(method, url, content);
@@ -516,17 +621,20 @@ namespace LightBlitz
             return default(T);
         }
 
-        private bool GetLeagueClientInformation(out Process process)
+        private bool GetLeagueClientInformation(out Process process, out string path)
         {
             // Get connect information
             var processes = Process.GetProcessesByName("LeagueClient");
 
             process = null;
+            path = string.Empty;
 
             foreach (var p in processes)
             {
                 string directory = Path.GetDirectoryName(p.MainModule.FileName);
                 string lockfilePath = Path.Combine(directory, "lockfile");
+
+                path = directory;
 
                 if (File.Exists(lockfilePath))
                 {

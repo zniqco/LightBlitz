@@ -37,7 +37,7 @@ namespace LightBlitz
 
             ApplySpellsCheckBox.IsChecked = Settings.Current.ApplySpells;
             ApplyRunesCheckBox.IsChecked = Settings.Current.ApplyRunes;
-            // ApplyItemBuildsCheckBox.IsChecked = Settings.Current.ApplyItemBuilds;
+            ApplyItemBuildsCheckBox.IsChecked = Settings.Current.ApplyItemBuilds;
             BlinkToRightCheckBox.IsChecked = Settings.Current.BlinkToRight;
 
             MapSummonersRiftCheckBox.IsChecked = Settings.Current.MapSummonersLift;
@@ -56,7 +56,7 @@ namespace LightBlitz
 
             Settings.Current.ApplySpells = (ApplySpellsCheckBox.IsChecked == true);
             Settings.Current.ApplyRunes = (ApplyRunesCheckBox.IsChecked == true);
-            // Settings.Current.ApplyItemBuilds = (ApplyItemBuildsCheckBox.IsChecked == true);
+            Settings.Current.ApplyItemBuilds = (ApplyItemBuildsCheckBox.IsChecked == true);
             Settings.Current.BlinkToRight = (BlinkToRightCheckBox.IsChecked == true);
 
             Settings.Current.MapSummonersLift = (MapSummonersRiftCheckBox.IsChecked == true);
