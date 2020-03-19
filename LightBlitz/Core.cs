@@ -22,20 +22,30 @@ namespace LightBlitz
             {
                 public class Queue
                 {
+                    [JsonRequired]
                     public int id { get; set; }
+
+                    [JsonRequired]
                     public int mapId { get; set; }
                 }
 
+                [JsonRequired]
                 public Queue queue { get; set; }
             }
 
+            [JsonRequired]
             public GameData gameData { get; set; }
+
+            [JsonRequired]
             public string phase { get; set; }
         }
 
         public class LeagueSummonerCurrentSummoner
         {
+            [JsonRequired]
             public int summonerId { get; set; }
+
+            [JsonRequired]
             public int summonerLevel { get; set; }
         }
 
@@ -43,53 +53,98 @@ namespace LightBlitz
         {
             public class Action
             {
+                [JsonRequired]
                 public int actorCellId { get; set; }
+
+                [JsonRequired]
                 public int championId { get; set; }
+
+                [JsonRequired]
                 public bool completed { get; set; }
+
+                [JsonRequired]
                 public string type { get; set; }
             }
 
             public class MyTeam
             {
+                [JsonRequired]
                 public int cellId { get; set; }
+
+                [JsonRequired]
                 public int championId { get; set; }
+
+                [JsonRequired]
                 public int summonerId { get; set; }
+
+                [JsonRequired]
                 public int selectedSkinId { get; set; }
+
+                [JsonRequired]
                 public int spell1Id { get; set; }
+
+                [JsonRequired]
                 public int spell2Id { get; set; }
+
+                [JsonRequired]
                 public int wardSkinId { get; set; }
             }
 
+            [JsonRequired]
             public Action[][] actions { get; set; }
+
+            [JsonRequired]
             public int localPlayerCellId { get; set; }
+
+            [JsonRequired]
             public MyTeam[] myTeam { get; set; }
         }
 
         public class LeagueChampSelectGridChampions
         {
+            [JsonRequired]
             public string name { get; set; }
         }
 
         public class LeagueChampSelectSessionMySelectionPatch
         {
+            [JsonRequired]
             public int selectedSkinId { get; set; }
+
+            [JsonRequired]
             public int spell1Id { get; set; }
+
+            [JsonRequired]
             public int spell2Id { get; set; }
+
+            [JsonRequired]
             public int wardSkinId { get; set; }
         }
 
         public class LeaguePerksPage
         {
+            [JsonRequired]
             public int id { get; set; }
+
+            [JsonRequired]
             public bool isEditable { get; set; }
+
+            [JsonRequired]
             public string name { get; set; }
         }
 
         public class LeaguePerksPagePost
         {
+            [JsonRequired]
             public string name { get; set; }
+
+            [JsonRequired]
             public int primaryStyleId { get; set; }
+
+            [JsonRequired]
             public int[] selectedPerkIds { get; set; }
+
+            [JsonRequired]
             public int subStyleId { get; set; }
         }
 
@@ -101,26 +156,43 @@ namespace LightBlitz
                 {
                     public class Builds
                     {
+                        // HACK: JsonRequired attribute raises an error (value is exists), Newtonsoft.Json bug?
                         public int[] build { get; set; }
                     }
 
+                    [JsonRequired]
                     public Builds runes { get; set; }
+
+                    [JsonRequired]
                     public Builds rune_stat_shards { get; set; }
+
+                    [JsonRequired]
                     public Builds spells { get; set; }
+
+                    [JsonRequired]
                     public Builds starting_items { get; set; }
+
+                    [JsonRequired]
                     public Builds core_builds { get; set; }
+
+                    [JsonRequired]
                     public Builds big_item_builds { get; set; }
                 }
 
+                [JsonRequired]
                 public string role { get; set; }
+
+                [JsonRequired]
                 public Stats stats { get; set; }
             }
 
+            [JsonRequired]
             public Data[] data { get; set; }
         }
 
         public class BlitzChampionsRole
         {
+            [JsonRequired]
             public string role { get; set; }
         }
 
@@ -128,9 +200,11 @@ namespace LightBlitz
         {
             public class Data
             {
+                [JsonRequired]
                 public string patch { get; set; }
             }
 
+            [JsonRequired]
             public Data data { get; set; }
         }
 
@@ -210,7 +284,6 @@ namespace LightBlitz
         private readonly HttpClient leagueHttpClient = new HttpClient();
         private readonly Champions champions = new Champions();
         private readonly Maps maps = new Maps();
-        private readonly JsonSerializerSettings jsonSerializerSettings;
 
         private Thread thread;
         private bool isBusy;
@@ -234,12 +307,6 @@ namespace LightBlitz
         {
             httpClient.Timeout = TimeSpan.FromSeconds(20.0);
             leagueHttpClient.Timeout = TimeSpan.FromSeconds(5.0);
-
-            jsonSerializerSettings = new JsonSerializerSettings()
-            {
-                ContractResolver = new RequiredContractResolver()
-            };
-
             ServicePointManager.SecurityProtocol = SecurityProtocolType.Ssl3 | SecurityProtocolType.Tls | SecurityProtocolType.Tls11 | SecurityProtocolType.Tls12;
             ServicePointManager.ServerCertificateValidationCallback = ServerCertificateValidationCallback;
         }
@@ -264,6 +331,8 @@ namespace LightBlitz
 
         private async void MainLoop()
         {
+            var a = await BlitzRequest<BlitzChampions>(string.Format("champions/{0}?patch={2}&queue={1}&region=world", 11, 420, 10.6));
+
             while (true)
             {
                 if (!GetLeagueClientInformation(out var process, out var path))
@@ -313,23 +382,27 @@ namespace LightBlitz
                                 var summonerData = await GetSummoner();
                                 var recommendedRole = await GetBlitzRecommendedRole(championId);
                                 var recommendedData = await GetBlitzRecommendedData(gameflowSession, championId, currentVersion);
-                                var recommendedDataWithRole = recommendedData.data.FirstOrDefault(x => x.role == recommendedRole);
 
-                                if (recommendedDataWithRole == null)
-                                    recommendedDataWithRole = recommendedData.data[0];
+                                if (recommendedData != null && recommendedData.data.Length >= 1)
+                                {
+                                    var recommendedDataWithRole = recommendedData.data.FirstOrDefault(x => x.role == recommendedRole);
 
-                                Debug.WriteLine("championId={0}, recommendedRole={1}", championId, recommendedRole);
+                                    if (recommendedDataWithRole == null)
+                                        recommendedDataWithRole = recommendedData.data[0];
 
-                                if (Settings.Current.ApplySpells)
-                                    await SetSpells(summonerData, recommendedDataWithRole);
+                                    Debug.WriteLine("championId={0}, recommendedRole={1}", championId, recommendedRole);
 
-                                if (Settings.Current.ApplyRunes && summonerData.summonerLevel >= 10)
-                                    await SetRunes(championId, recommendedDataWithRole);
+                                    if (Settings.Current.ApplySpells)
+                                        await SetSpells(summonerData, recommendedDataWithRole);
 
-                                if (Settings.Current.ApplyItemBuilds)
-                                    SetItemBuilds(championId, recommendedDataWithRole, path);
+                                    if (Settings.Current.ApplyRunes && summonerData.summonerLevel >= 10)
+                                        await SetRunes(championId, recommendedDataWithRole);
 
-                                latestChampionId = championId;
+                                    if (Settings.Current.ApplyItemBuilds)
+                                        SetItemBuilds(championId, recommendedDataWithRole, path);
+
+                                    latestChampionId = championId;
+                                }
                             }
 
                             await Task.Delay(500);
@@ -558,7 +631,7 @@ namespace LightBlitz
             {
                 try
                 {
-                    return JsonConvert.DeserializeObject<T>(result, jsonSerializerSettings);
+                    return JsonConvert.DeserializeObject<T>(result);
                 }
                 catch (JsonSerializationException)
                 {
@@ -602,9 +675,13 @@ namespace LightBlitz
 
                 if (response.IsSuccessStatusCode)
                 {
+                    string result = await response.Content.ReadAsStringAsync();
+
+                    Debug.WriteLine(result);
+
                     try
                     {
-                        return JsonConvert.DeserializeObject<T>(await response.Content.ReadAsStringAsync(), jsonSerializerSettings);
+                        return JsonConvert.DeserializeObject<T>(result);
                     }
                     catch (JsonSerializationException)
                     {
