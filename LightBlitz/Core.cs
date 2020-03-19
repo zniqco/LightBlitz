@@ -331,8 +331,6 @@ namespace LightBlitz
 
         private async void MainLoop()
         {
-            var a = await BlitzRequest<BlitzChampions>(string.Format("champions/{0}?patch={2}&queue={1}&region=world", 11, 420, 10.6));
-
             while (true)
             {
                 if (!GetLeagueClientInformation(out var process, out var path))
