@@ -441,7 +441,7 @@ namespace LightBlitz
 
             if (action != null)
             {
-                if (!action.completed || action.type != "pick")
+                if (!action.completed)
                     return 0;
 
                 return action.championId;
