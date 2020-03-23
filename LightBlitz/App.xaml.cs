@@ -46,7 +46,7 @@ namespace LightBlitz
             MenuItem versionMenuItem;
 
             notifyIcon = new TaskbarIcon();
-            notifyIcon.Icon = LightBlitz.Properties.Resources.Icon;
+            notifyIcon.Icon = LightBlitz.Properties.Resources.TrayIcon;
             notifyIcon.ContextMenu = new ContextMenu();
             notifyIcon.ContextMenu.Items.Add(CreateMenuItem("Settings", SettingMenuItem_Click));
             notifyIcon.ContextMenu.Items.Add(new Separator());
