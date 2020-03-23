@@ -51,21 +51,6 @@ namespace LightBlitz
 
         public class LeagueChampSelectSession
         {
-            public class Action
-            {
-                [JsonRequired]
-                public int actorCellId { get; set; }
-
-                [JsonRequired]
-                public int championId { get; set; }
-
-                [JsonRequired]
-                public bool completed { get; set; }
-
-                [JsonRequired]
-                public string type { get; set; }
-            }
-
             public class MyTeam
             {
                 [JsonRequired]
@@ -89,9 +74,6 @@ namespace LightBlitz
                 [JsonRequired]
                 public int wardSkinId { get; set; }
             }
-
-            [JsonRequired]
-            public Action[][] actions { get; set; }
 
             [JsonRequired]
             public int localPlayerCellId { get; set; }
@@ -430,29 +412,12 @@ namespace LightBlitz
 
         private async Task<int> GetSelectedChampionId()
         {
-            var result = await LeagueRequest<LeagueChampSelectSession>(HttpMethod.Get, "lol-champ-select/v1/session");
+            var result = await LeagueRequestRaw(HttpMethod.Get, "lol-champ-select/v1/current-champion");
 
-            if (result == null)
-                return 0;
+            if (result != null && int.TryParse(result, out int champion))
+                return champion;
 
-            var action = result.actions.SelectMany(x => x).FirstOrDefault(x => x.actorCellId == result.localPlayerCellId);
-
-            if (action != null)
-            {
-                if (!action.completed)
-                    return 0;
-
-                return action.championId;
-            }
-            else
-            {
-                var summoner = result.myTeam.FirstOrDefault(x => x.cellId == result.localPlayerCellId);
-
-                if (summoner == null)
-                    return 0;
-
-                return summoner.championId;
-            }            
+            return 0;
         }
 
         private async Task<string> GetBlitzCurrentVersion()
