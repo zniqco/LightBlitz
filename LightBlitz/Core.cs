@@ -321,14 +321,19 @@ namespace LightBlitz
                     continue;
                 }
 
-                var championFolders = Directory.GetDirectories(Path.Combine(path, "Config/Champions"));
+                var championBaseFolder = Path.Combine(path, "Config/Champions");
 
-                foreach (var championFolder in championFolders)
+                if (Directory.Exists(championBaseFolder))
                 {
-                    var itemBuildsPath = Path.Combine(championFolder, "Recommended/" + itemBuildsFileName);
+                    var championFolders = Directory.GetDirectories(championBaseFolder);
 
-                    if (File.Exists(itemBuildsPath))
-                        File.Delete(itemBuildsPath);
+                    foreach (var championFolder in championFolders)
+                    {
+                        var itemBuildsPath = Path.Combine(championFolder, "Recommended/" + itemBuildsFileName);
+
+                        if (File.Exists(itemBuildsPath))
+                            File.Delete(itemBuildsPath);
+                    }
                 }
 
                 await champions.Load(leagueHttpClient);
