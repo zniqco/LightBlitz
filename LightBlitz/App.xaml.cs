@@ -1,4 +1,5 @@
 ﻿using Hardcodet.Wpf.TaskbarNotification;
+using System.Diagnostics;
 using System.Reflection;
 using System.Threading;
 using System.Windows;
@@ -50,7 +51,7 @@ namespace LightBlitz
             notifyIcon.ContextMenu = new ContextMenu();
             notifyIcon.ContextMenu.Items.Add(CreateMenuItem("Settings", SettingMenuItem_Click));
             notifyIcon.ContextMenu.Items.Add(new Separator());
-            notifyIcon.ContextMenu.Items.Add(versionMenuItem = CreateMenuItem(""));
+            notifyIcon.ContextMenu.Items.Add(versionMenuItem = CreateMenuItem("", VersionMenuItem_Click));
             notifyIcon.ContextMenu.Items.Add(new Separator());
             notifyIcon.ContextMenu.Items.Add(CreateMenuItem("Exit", ExitMenuItem_Click));
             notifyIcon.TrayMouseDoubleClick += SettingMenuItem_Click;
@@ -58,7 +59,6 @@ namespace LightBlitz
             var version = Assembly.GetExecutingAssembly().GetName().Version;
 
             versionMenuItem.Header = string.Format("v{0}.{1}.{2}.{3}", version.Major, version.Minor, version.Build, version.Revision);
-            versionMenuItem.IsEnabled = false;
         }
 
         private void CleanupNotifyIcon()
@@ -76,6 +76,11 @@ namespace LightBlitz
             }
 
             new SettingWindow().ShowDialog();
+        }
+
+        private void VersionMenuItem_Click(object sender, RoutedEventArgs e)
+        {
+            Process.Start("https://github.com/zniqco/LightBlitz/releases");
         }
 
         private void ExitMenuItem_Click(object sender, RoutedEventArgs e)
